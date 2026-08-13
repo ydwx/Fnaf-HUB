@@ -3,28 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FNAF Hub</title>
+  <title>FNAF Hub - Security Office</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <h1 id="mainTitle">مركز ألعاب فناف</h1>
     <div class="controls">
-      <button id="themeToggle">🌙</button>
+      <button id="themeToggle">💡</button>
       <button id="langToggle">🇬🇧 English</button>
     </div>
   </header>
-
-  <!-- ===== شريط البحث والتصفية ===== -->
-  <div class="filter-bar">
-    <input type="text" id="searchInput" placeholder="🔍 ابحث عن لعبة..." />
-    <div class="filter-buttons">
-      <button class="filter-btn active" data-filter="all">الكل</button>
-      <button class="filter-btn" data-filter="MOD">🔴 MOD</button>
-      <button class="filter-btn" data-filter="PORT">🟣 PORT</button>
-      <button class="filter-btn" data-filter="ORIGINAL">🟡 ORIGINAL</button>
-    </div>
-  </div>
 
   <!-- ===== القائمة الرئيسية ===== -->
   <section id="homePage">
@@ -33,9 +25,18 @@
 
   <!-- ===== صفحة التفاصيل ===== -->
   <section id="detailPage" style="display: none;">
-    <button id="backBtn" class="back-btn">↩ رجوع</button>
+    <button id="backBtn" class="back-btn">⬅ رجوع</button>
     <div id="detailContent"></div>
   </section>
+
+  <!-- ===== نافذة اختيار التحميل (Modal) ===== -->
+  <div id="downloadModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close-modal">✖</span>
+      <h2 id="modalTitle">اختر نسخة التحميل</h2>
+      <div id="modalButtons"></div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

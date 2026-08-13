@@ -1,47 +1,21 @@
 // ===== المتغيرات العامة =====
 let gamesData = [];
 let currentLang = localStorage.getItem('fnaf_lang') || 'ar';
-let currentTheme = localStorage.getItem('fnaf_theme') || 'light';
-let currentFilter = 'all';
-let currentSearch = '';
+let currentTheme = localStorage.getItem('fnaf_theme') || 'dark';
+let currentGameId = null;
 
-// ===== رابط الصورة الاحتياطية (دائم) =====
+// ===== رابط الصورة الاحتياطية =====
 const FALLBACK_IMAGE = 'https://raw.githubusercontent.com/ydwx/fnaf-game-storge/refs/heads/main/files/98ad0a1411be3725701fc34c5d84b664.jpg';
-
-// ===== دالة استخراج الـ Tags =====
-function getGameTags(game) {
-  const tags = [];
-  if (game.tags && game.tags.length > 0) {
-    return game.tags;
-  }
-  if (game.download_mod && game.download_mod.trim() !== '') {
-    tags.push('MOD');
-  }
-  if (game.download_obb && game.download_obb.trim() !== '') {
-    tags.push('PORT');
-  }
-  if (tags.length === 0) {
-    tags.push('ORIGINAL');
-  }
-  return tags;
-}
-
-// ===== دالة عرض الـ Tags (بصيغة HTML) =====
-function renderTags(tags) {
-  return tags.map(tag => {
-    const className = `tag tag-${tag.toLowerCase()}`;
-    return `<span class="${className}">${tag}</span>`;
-  }).join('');
-}
 
 // ===== تطبيق الإعدادات المحفوظة =====
 function applySavedSettings() {
-  if (currentTheme === 'dark') {
-    document.body.classList.add('dark');
-    document.getElementById('themeToggle').textContent = '☀️';
+  // بما أننا نستخدم ثيم FNAF داكن كأساس، نضيف كلاس light لتفتيح بسيط
+  if (currentTheme === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('themeToggle').textContent = '🔦';
   } else {
-    document.body.classList.remove('dark');
-    document.getElementById('themeToggle').textContent = '🌙';
+    document.body.classList.remove('light');
+    document.getElementById('themeToggle').textContent = '💡';
   }
   const langBtn = document.getElementById('langToggle');
   langBtn.textContent = currentLang === 'ar' ? '🇬🇧 English' : '🇸🇦 العربية';
@@ -58,84 +32,130 @@ fetch('data.json')
   .then(data => {
     gamesData = data;
     checkRoute();
-    applyFilters();
+    renderGames();
   })
   .catch(() => {
     document.getElementById('gamesContainer').innerHTML =
-      '<p style="text-align:center; color:#e74c3c;">⚠️ تعذر تحميل البيانات، تأكد من وجود ملف data.json</p>';
+      '<p style="text-align:center; color:#e74c3c; font-family:Courier New;">⚠️ تعذر تحميل البيانات، تأكد من وجود ملف data.json</p>';
   });
 
-// ===== دالة التصفية والبحث =====
-function applyFilters() {
+// ===== عرض الألعاب =====
+function renderGames() {
   const container = document.getElementById('gamesContainer');
   if (!gamesData.length) {
-    container.innerHTML = '<p style="text-align:center;">لا توجد ألعاب حالياً</p>';
-    return;
-  }
-
-  const searchTerm = currentSearch.toLowerCase().trim();
-  const filtered = gamesData.filter(game => {
-    const tags = getGameTags(game);
-    if (currentFilter !== 'all' && !tags.includes(currentFilter)) {
-      return false;
-    }
-    if (searchTerm !== '') {
-      const nameEn = game.name.toLowerCase();
-      const nameAr = game.name_ar ? game.name_ar.toLowerCase() : '';
-      return nameEn.includes(searchTerm) || nameAr.includes(searchTerm);
-    }
-    return true;
-  });
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<div class="no-results">❌ لا توجد ألعاب تطابق البحث</div>';
+    container.innerHTML = '<p style="text-align:center; color:#888;">لا توجد ألعاب حالياً</p>';
     return;
   }
 
   container.innerHTML = '';
-  filtered.forEach(game => {
+  gamesData.forEach(game => {
     const name = game.name;
     const story = currentLang === 'ar' ? game.story_ar : game.story;
-    const btnText = currentLang === 'ar' ? '📖 تفاصيل' : '📖 Details';
-    const tags = getGameTags(game);
-    const tagsHtml = renderTags(tags);
+    const btnText = currentLang === 'ar' ? '⬇️ تحميل' : '⬇️ Download';
 
     const card = document.createElement('div');
     card.className = 'game-card';
     card.innerHTML = `
       <img src="${game.image}" alt="${name}" loading="lazy" onerror="this.src='${FALLBACK_IMAGE}'; this.classList.add('error');" />
       <h2>${name}</h2>
-      <div class="game-tags">${tagsHtml}</div>
       <p>${story}</p>
-      <button class="card-btn" data-id="${game.id}">${btnText}</button>
+      <button class="download-btn-card" data-id="${game.id}">${btnText}</button>
     `;
     container.appendChild(card);
   });
 
-  container.querySelectorAll('.card-btn').forEach(btn => {
+  container.querySelectorAll('.download-btn-card').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      navigateToGame(parseInt(btn.dataset.id));
+      const id = parseInt(btn.dataset.id);
+      handleDownload(id);
     });
   });
+
   container.querySelectorAll('.game-card').forEach(card => {
     card.addEventListener('click', function () {
-      const btn = this.querySelector('.card-btn');
-      if (btn) navigateToGame(parseInt(btn.dataset.id));
+      const btn = this.querySelector('.download-btn-card');
+      if (btn) {
+        const id = parseInt(btn.dataset.id);
+        handleDownload(id);
+      }
     });
   });
 }
 
-// ===== عرض الصفحة الرئيسية =====
-function showHome() {
-  document.getElementById('homePage').style.display = 'block';
-  document.getElementById('detailPage').style.display = 'none';
-  document.getElementById('mainTitle').style.display = 'block';
-  applyFilters();
+// ===== معالج التحميل الذكي =====
+function handleDownload(id) {
+  const game = gamesData.find(g => g.id === id);
+  if (!game) return;
+
+  const links = [];
+  
+  links.push({
+    type: 'original',
+    label: currentLang === 'ar' ? '📥 تحميل عادي' : '📥 Original',
+    url: game.download
+  });
+
+  if (game.download_mod && game.download_mod.trim() !== '') {
+    links.push({
+      type: 'mod',
+      label: currentLang === 'ar' ? '⚡ تحميل MOD' : '⚡ MOD',
+      url: game.download_mod
+    });
+  }
+
+  if (game.download_obb && game.download_obb.trim() !== '') {
+    links.push({
+      type: 'obb',
+      label: currentLang === 'ar' ? '📦 تحميل OBB' : '📦 OBB',
+      url: game.download_obb
+    });
+  }
+
+  if (links.length === 1) {
+    window.open(links[0].url, '_blank');
+    return;
+  }
+
+  showDownloadModal(game.name, links);
 }
 
+// ===== نافذة اختيار التحميل =====
+function showDownloadModal(gameName, links) {
+  const modal = document.getElementById('downloadModal');
+  const title = document.getElementById('modalTitle');
+  const container = document.getElementById('modalButtons');
+
+  title.textContent = currentLang === 'ar' 
+    ? `🎮 اختر النسخة لـ ${gameName}`
+    : `🎮 Choose version for ${gameName}`;
+
+  container.innerHTML = '';
+  links.forEach(link => {
+    const btn = document.createElement('a');
+    btn.className = `modal-btn ${link.type}`;
+    btn.href = link.url;
+    btn.target = '_blank';
+    btn.textContent = link.label;
+    container.appendChild(btn);
+  });
+
+  modal.style.display = 'flex';
+}
+
+// ===== إغلاق النافذة =====
+document.querySelector('.close-modal').addEventListener('click', () => {
+  document.getElementById('downloadModal').style.display = 'none';
+});
+
+document.getElementById('downloadModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    this.style.display = 'none';
+  }
+});
+
 // ===== عرض صفحة التفاصيل =====
-function showGameDetail(id) {
+function showDetail(id) {
   const game = gamesData.find(g => g.id === id);
   if (!game) {
     showHome();
@@ -148,13 +168,7 @@ function showGameDetail(id) {
 
   const name = game.name;
   const story = currentLang === 'ar' ? game.story_ar : game.story;
-  const downloadText = currentLang === 'ar' ? '📥 تحميل عادي' : '📥 Original';
-  const modText = currentLang === 'ar' ? '⚡ تحميل MOD (مهكرة)' : '⚡ MOD (Hacked)';
-  const modBadge = currentLang === 'ar' ? 'نسخة مهكرة' : 'MOD Version';
-  const obbText = currentLang === 'ar' ? '📦 تحميل بيانات اللعبة (OBB)' : '📦 Download Game Data (OBB)';
-
-  const tags = getGameTags(game);
-  const tagsHtml = renderTags(tags);
+  const downloadText = currentLang === 'ar' ? '⬇️ تحميل عادي' : '⬇️ Original';
 
   let warningHtml = '';
   if (game.warning && game.warning.trim() !== '') {
@@ -165,16 +179,16 @@ function showGameDetail(id) {
   if (game.download_mod && game.download_mod.trim() !== '') {
     downloadButtons += `
       <a href="${game.download_mod}" target="_blank" class="download-btn mod">
-        ${modText}
-        <span class="badge">${modBadge}</span>
+        ⚡ MOD
+        <span class="badge">${currentLang === 'ar' ? 'مهكرة' : 'Hacked'}</span>
       </a>
     `;
   }
   if (game.download_obb && game.download_obb.trim() !== '') {
     downloadButtons += `
       <a href="${game.download_obb}" target="_blank" class="download-btn obb">
-        ${obbText}
-        <span class="badge">${currentLang === 'ar' ? 'ملف بيانات' : 'Data File'}</span>
+        📦 OBB
+        <span class="badge">${currentLang === 'ar' ? 'ملف بيانات' : 'Data'}</span>
       </a>
     `;
   }
@@ -183,7 +197,6 @@ function showGameDetail(id) {
     <div class="detail-card">
       <img src="${game.image}" alt="${name}" onerror="this.src='${FALLBACK_IMAGE}'; this.classList.add('error');" />
       <h2>${name}</h2>
-      <div class="detail-tags">${tagsHtml}</div>
       <div class="story">${story}</div>
       ${warningHtml}
       <div class="download-section">
@@ -194,9 +207,11 @@ function showGameDetail(id) {
 }
 
 // ===== التوجيه =====
-function navigateToGame(id) {
-  history.pushState({ gameId: id }, '', `?id=${id}`);
-  showGameDetail(id);
+function showHome() {
+  document.getElementById('homePage').style.display = 'block';
+  document.getElementById('detailPage').style.display = 'none';
+  document.getElementById('mainTitle').style.display = 'block';
+  renderGames();
 }
 
 function navigateHome() {
@@ -208,15 +223,17 @@ function checkRoute() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
   if (id && gamesData.length) {
-    showGameDetail(parseInt(id));
+    showDetail(parseInt(id));
   } else if (gamesData.length) {
     showHome();
   }
 }
 
-window.addEventListener('popstate', event => {
-  if (event.state && event.state.gameId) {
-    showGameDetail(event.state.gameId);
+window.addEventListener('popstate', () => {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id && gamesData.length) {
+    showDetail(parseInt(id));
   } else {
     showHome();
   }
@@ -237,32 +254,17 @@ document.getElementById('langToggle').addEventListener('click', function () {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
   if (id) {
-    showGameDetail(parseInt(id));
+    showDetail(parseInt(id));
   } else {
-    showHome();
+    renderGames();
   }
 });
 
 document.getElementById('themeToggle').addEventListener('click', function () {
-  document.body.classList.toggle('dark');
-  const isDark = document.body.classList.contains('dark');
-  localStorage.setItem('fnaf_theme', isDark ? 'dark' : 'light');
-  this.textContent = isDark ? '☀️' : '🌙';
-});
-
-// ===== أحداث البحث والتصفية =====
-document.getElementById('searchInput').addEventListener('input', function () {
-  currentSearch = this.value;
-  applyFilters();
-});
-
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', function () {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    currentFilter = this.dataset.filter;
-    applyFilters();
-  });
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('fnaf_theme', isLight ? 'light' : 'dark');
+  this.textContent = isLight ? '🔦' : '💡';
 });
 
 // ===== التشغيل =====
